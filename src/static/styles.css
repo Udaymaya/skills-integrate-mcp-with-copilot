@@ -16,12 +16,55 @@ body {
 }
 
 header {
+  position: relative;
   text-align: center;
   padding: 20px 0;
   margin-bottom: 30px;
   background-color: #1a237e;
   color: white;
   border-radius: 5px;
+}
+
+.user-controls {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+}
+
+.user-icon-btn {
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.user-icon-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.user-menu {
+  position: absolute;
+  right: 0;
+  top: 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+  min-width: 120px;
+  background-color: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+}
+
+.auth-status {
+  margin-top: 8px;
+  color: #d0d9ff;
+  font-size: 14px;
 }
 
 header h1 {
@@ -72,6 +115,15 @@ section h3 {
 
 .activity-card p {
   margin-bottom: 8px;
+}
+
+.register-btn {
+  margin-top: 10px;
+  background-color: #0d8a4b;
+}
+
+.register-btn:hover {
+  background-color: #0c7a43;
 }
 
 /* New styles for participants section */
@@ -189,7 +241,30 @@ button:hover {
 }
 
 .hidden {
-  display: none;
+  display: none !important;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+}
+
+.modal-content {
+  width: min(420px, 92vw);
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
 }
 
 footer {

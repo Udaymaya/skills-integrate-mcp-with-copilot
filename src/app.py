@@ -5,11 +5,15 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
 from pathlib import Path
+from pydantic import BaseModel
+import json
+import secrets
+from typing import Optional
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
@@ -18,6 +22,36 @@ app = FastAPI(title="Mergington High School API",
 current_dir = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=os.path.join(Path(__file__).parent,
           "static")), name="static")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def _load_teacher_credentials() -> dict[str, str]:
+    """Load teacher credentials from a local JSON file."""
+    credentials_path = current_dir / "teachers.json"
+    with credentials_path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    return data.get("teachers", {})
+
+
+teacher_credentials = _load_teacher_credentials()
+# Simple in-memory token store for logged-in teachers.
+active_teacher_tokens: dict[str, str] = {}
+
+
+def _get_teacher_from_header(authorization: Optional[str]) -> str:
+    """Validate bearer token and return the teacher username."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Teacher login required")
+
+    token = authorization.removeprefix("Bearer ").strip()
+    username = active_teacher_tokens.get(token)
+    if not username:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    return username
 
 # In-memory activity database
 activities = {
@@ -88,9 +122,43 @@ def get_activities():
     return activities
 
 
+@app.post("/auth/login")
+def teacher_login(payload: LoginRequest):
+    expected_password = teacher_credentials.get(payload.username)
+    if expected_password is None or expected_password != payload.password:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    token = secrets.token_urlsafe(24)
+    active_teacher_tokens[token] = payload.username
+    return {"message": "Login successful", "token": token, "username": payload.username}
+
+
+@app.post("/auth/logout")
+def teacher_logout(authorization: Optional[str] = Header(default=None)):
+    username = _get_teacher_from_header(authorization)
+    token = authorization.removeprefix("Bearer ").strip()
+    active_teacher_tokens.pop(token, None)
+    return {"message": f"Logged out {username}"}
+
+
+@app.get("/auth/status")
+def auth_status(authorization: Optional[str] = Header(default=None)):
+    try:
+        username = _get_teacher_from_header(authorization)
+        return {"authenticated": True, "username": username}
+    except HTTPException:
+        return {"authenticated": False}
+
+
 @app.post("/activities/{activity_name}/signup")
-def signup_for_activity(activity_name: str, email: str):
+def signup_for_activity(
+    activity_name: str,
+    email: str,
+    authorization: Optional[str] = Header(default=None)
+):
     """Sign up a student for an activity"""
+    _get_teacher_from_header(authorization)
+
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -111,8 +179,14 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 @app.delete("/activities/{activity_name}/unregister")
-def unregister_from_activity(activity_name: str, email: str):
+def unregister_from_activity(
+    activity_name: str,
+    email: str,
+    authorization: Optional[str] = Header(default=None)
+):
     """Unregister a student from an activity"""
+    _get_teacher_from_header(authorization)
+
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
